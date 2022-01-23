@@ -5,7 +5,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"log"
-	"time"
+	"os"
+	"strconv"
 )
 
 func main() {
@@ -14,38 +15,16 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	streamer := NewLogStreamer(clientset)
-
 	broker := NewLogBroker(streamer)
-	for i := 0; i < 2; i++ {
-		container := "python"
-		if i%2 == 1 {
-			container = "client"
-		}
-
-		src := &LogSource{"dev", "pyapp-6d76fbb595-jdb8h", container}
-
-		consumer, err := broker.Subscribe(src)
-		if err != nil {
-			log.Fatal(err)
-		}
-		go func(c *LogConsumer) {
-			defer broker.Unsubscribe(c)
-
-			for {
-				select {
-				case <-time.After(time.Second * 5):
-					log.Println("timeout")
-					return
-				case m := <-c.messages:
-					log.Println(m)
-				}
-			}
-		}(consumer)
+	portEnv := os.Getenv("PORT")
+	if portEnv == "" {
+		portEnv = "8080"
 	}
+	port, _ := strconv.Atoi(portEnv)
 
-	broker.PumpMessages()
+	app := NewApp(port, broker)
+	log.Fatalln(app.Serve())
 }
 
 func NewKubernetesClient(kubeconfigPath string) (*kubernetes.Clientset, error) {

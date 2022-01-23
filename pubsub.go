@@ -31,15 +31,16 @@ func NewLogBroker(streamer *LogStreamer) *LogBroker {
 
 func (b *LogBroker) PumpMessages() {
 	for {
-		if len(b.streams) == 0 {
-			return
-		}
+		b.mu.RLock()
 		for src, s := range b.streams {
 			select {
 			case m := <-s.logs:
 				b.dispatch(src, m)
+			default:
+				continue
 			}
 		}
+		b.mu.RUnlock()
 	}
 }
 
