@@ -26,6 +26,7 @@ Logs will be streamed as soon as they are available in plain text format.
 You can connect to multiple containers at the same time.
 
 ## TODO
+- [ ] Detect if websocket connection is closed by client and unsubscribe.
 - [ ] Set up CI and automatic releases
 - [ ] Add tests
 - [ ] Add Docker support

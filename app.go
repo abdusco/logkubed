@@ -57,6 +57,7 @@ func (a *App) streamLogs(c echo.Context) error {
 				return
 			}
 		}
+		// TODO: unsubscribe if client disconnects
 	}).ServeHTTP(c.Response(), c.Request())
 	return nil
 }
