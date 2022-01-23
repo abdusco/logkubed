@@ -23,6 +23,7 @@ func NewApp(port int, broker *LogBroker) *App {
 
 func (a *App) Serve() error {
 	e := echo.New()
+	e.HideBanner = true
 	e.Use(middleware.Recover())
 	e.Use(middleware.Logger())
 	e.Use(middleware.CORS())
