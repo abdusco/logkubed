@@ -1,6 +1,9 @@
 package main
 
-import "sync"
+import (
+	"log"
+	"sync"
+)
 
 type LogConsumer struct {
 	source   *LogSource
@@ -15,16 +18,16 @@ type LogStream struct {
 
 type LogBroker struct {
 	mu        sync.RWMutex
-	consumers map[*LogSource]map[*LogConsumer]struct{}
-	streams   map[*LogSource]*LogStream
+	consumers map[string]map[*LogConsumer]struct{}
+	streams   map[string]*LogStream
 	closed    bool
 	streamer  *LogStreamer
 }
 
 func NewLogBroker(streamer *LogStreamer) *LogBroker {
 	return &LogBroker{
-		consumers: make(map[*LogSource]map[*LogConsumer]struct{}),
-		streams:   make(map[*LogSource]*LogStream),
+		consumers: make(map[string]map[*LogConsumer]struct{}),
+		streams:   make(map[string]*LogStream),
 		streamer:  streamer,
 	}
 }
@@ -44,7 +47,7 @@ func (b *LogBroker) PumpMessages() {
 	}
 }
 
-func (b *LogBroker) dispatch(src *LogSource, msg string) {
+func (b *LogBroker) dispatch(src string, msg string) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 
@@ -59,12 +62,13 @@ func (b *LogBroker) dispatch(src *LogSource, msg string) {
 	}
 }
 
-func (b *LogBroker) Subscribe(src *LogSource) (*LogConsumer, error) {
+func (b *LogBroker) Subscribe(source *LogSource) (*LogConsumer, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
+	src := source.String()
 	if _, ok := b.streams[src]; !ok {
-		stream, err := b.streamer.Stream(src)
+		stream, err := b.streamer.Stream(source)
 		if err != nil {
 			return nil, err
 		}
@@ -74,14 +78,13 @@ func (b *LogBroker) Subscribe(src *LogSource) (*LogConsumer, error) {
 	ch := make(chan string, 1)
 
 	c := &LogConsumer{
-		source:   src,
+		source:   source,
 		messages: ch,
 	}
 
 	if _, ok := b.consumers[src]; !ok {
 		b.consumers[src] = make(map[*LogConsumer]struct{})
 	}
-
 	b.consumers[src][c] = struct{}{}
 
 	return c, nil
@@ -110,12 +113,16 @@ func (b *LogBroker) Unsubscribe(c *LogConsumer) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	if _, ok := b.consumers[c.source]; ok {
-		delete(b.consumers[c.source], c)
+	log.Println("unsubbing consumer", c.source)
 
-		if (len(b.consumers[c.source])) == 0 {
-			b.streams[c.source].stop <- true
-			delete(b.streams, c.source)
+	src := c.source.String()
+
+	if _, ok := b.consumers[src]; ok {
+		delete(b.consumers[src], c)
+
+		if (len(b.consumers[src])) == 0 {
+			b.streams[src].stop <- true
+			delete(b.streams, src)
 		}
 	}
 }
