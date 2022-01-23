@@ -20,7 +20,7 @@
 Logs are served via websocket from `/logs` endpoint. 
 Specify the `namespace`, `pod` and `container` names as query parameters.
 ```text
-http://localhost:8080/logs?namespace=default&pod=my-nginx&container=nginx
+ws://localhost:8080/logs?namespace=default&pod=my-nginx&container=nginx
 ```
 Logs will be streamed as soon as they are available in plain text format.
 You can connect to multiple containers at the same time.
