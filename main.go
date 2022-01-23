@@ -18,7 +18,7 @@ func main() {
 		log.Println("using in-cluster config")
 		clientset, err = NewKubernetesInClusterClient()
 	} else {
-		log.Println("using kubeconfig")
+		log.Println("using kubeconfig at", kubeconfigPath)
 		clientset, err = NewKubernetesLocalClient(kubeconfigPath)
 	}
 	if err != nil {
