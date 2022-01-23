@@ -46,7 +46,7 @@ func (a *App) streamLogs(c echo.Context) error {
 	stream, err := a.broker.Subscribe(src)
 	if err != nil {
 		log.Println(err)
-		return c.JSON(http.StatusUnprocessableEntity, map[string]string{"error": "cannot stream logs"})
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "cannot stream logs"})
 	}
 
 	websocket.Handler(func(conn *websocket.Conn) {
