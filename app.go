@@ -7,6 +7,7 @@ import (
 	"golang.org/x/net/websocket"
 	"log"
 	"net/http"
+	"time"
 )
 
 type App struct {
@@ -52,13 +53,18 @@ func (a *App) streamLogs(c echo.Context) error {
 
 	websocket.Handler(func(conn *websocket.Conn) {
 		defer conn.Close()
+		defer a.broker.Unsubscribe(stream)
+
 		for msg := range stream.messages {
-			_, err := conn.Write([]byte(msg))
+			err := conn.SetWriteDeadline(time.Now().Add(time.Second * 3))
+			if err != nil {
+				return
+			}
+			_, err = conn.Write([]byte(msg))
 			if err != nil {
 				return
 			}
 		}
-		// TODO: unsubscribe if client disconnects
 	}).ServeHTTP(c.Response(), c.Request())
 	return nil
 }
