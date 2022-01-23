@@ -14,38 +14,38 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	streamer := NewLogStreamer(clientset)
-	src := &LogSource{"dev", "pyapp-6d76fbb595-jdb8h", "python"}
 
-	stream, err := streamer.Stream(src)
-	if err != nil {
-		log.Fatal(err)
+	streamer := NewLogStreamer(clientset)
+
+	broker := NewLogBroker(streamer)
+	for i := 0; i < 2; i++ {
+		container := "python"
+		if i%2 == 1 {
+			container = "client"
+		}
+
+		src := &LogSource{"dev", "pyapp-6d76fbb595-jdb8h", container}
+
+		consumer, err := broker.Subscribe(src)
+		if err != nil {
+			log.Fatal(err)
+		}
+		go func(c *LogConsumer) {
+			defer broker.Unsubscribe(c)
+
+			for {
+				select {
+				case <-time.After(time.Second * 5):
+					log.Println("timeout")
+					return
+				case m := <-c.messages:
+					log.Println(m)
+				}
+			}
+		}(consumer)
 	}
 
-	broker := NewStreamBroker(stream)
-
-	c1 := broker.Subscribe()
-	c2 := broker.Subscribe()
-
-	go func() {
-		for {
-			log.Println(<-c1.messages)
-		}
-	}()
-
-	go func() {
-		for {
-			log.Println(<-c2.messages)
-		}
-	}()
-
-	go func() {
-		<-time.After(time.Second * 20)
-		broker.Unsubscribe(c1)
-		broker.Unsubscribe(c2)
-	}()
-
-	broker.Dispatch()
+	broker.PumpMessages()
 }
 
 func NewKubernetesClient(kubeconfigPath string) (*kubernetes.Clientset, error) {

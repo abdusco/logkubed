@@ -8,7 +8,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"log"
-	"sync"
 )
 
 type LogSource struct {
@@ -22,27 +21,20 @@ func (l LogSource) String() string {
 }
 
 type LogStreamer struct {
-	mu        sync.RWMutex
 	clientset *kubernetes.Clientset
-	streams   map[*LogSource]*LogStream
 }
 
 func NewLogStreamer(clientset *kubernetes.Clientset) *LogStreamer {
-	return &LogStreamer{clientset: clientset, streams: make(map[*LogSource]*LogStream)}
+	return &LogStreamer{
+		clientset: clientset,
+	}
 }
 
-func (k *LogStreamer) Stream(src *LogSource) (*LogStream, error) {
-	k.mu.RLock()
-	if stream, ok := k.streams[src]; ok {
-		log.Println("found existing stream for", src)
-		return stream, nil
-	}
-	k.mu.RUnlock()
-
+func (s *LogStreamer) Stream(src *LogSource) (*LogStream, error) {
 	log.Println("creating a new stream for", src)
 
 	since := int64(1)
-	req := k.clientset.CoreV1().Pods(src.Namespace).GetLogs(src.Pod, &v1.PodLogOptions{
+	req := s.clientset.CoreV1().Pods(src.Namespace).GetLogs(src.Pod, &v1.PodLogOptions{
 		Container:    src.Container,
 		Follow:       true,
 		SinceSeconds: &since,
@@ -61,18 +53,11 @@ func (k *LogStreamer) Stream(src *LogSource) (*LogStream, error) {
 		stop:   stop,
 		source: src,
 	}
-	k.mu.Lock()
-	k.streams[src] = logStream
-	k.mu.Unlock()
 
 	go func() {
 		<-stop
 		log.Println("stopping stream", src)
 		cancel()
-
-		k.mu.Lock()
-		delete(k.streams, src)
-		k.mu.Unlock()
 	}()
 
 	scanner := bufio.NewScanner(stream)
