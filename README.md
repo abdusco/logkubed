@@ -1,4 +1,4 @@
-# log<sup>3</sup> (logcubed)
+# log<sup>3</sup> (logkubed)
 
 **logcubed** is a mini app that helps you stream Kubernetes pod logs in realtime.
 
